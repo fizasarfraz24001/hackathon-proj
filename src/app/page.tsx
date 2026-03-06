@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
+import { signInUser, signUpUser, signInWithGoogle } from '@/lib/auth';
 
 type Track = {
   title: string;
@@ -70,11 +71,6 @@ const navItems = [
   { label: "Contact", href: "#contact" },
 ];
 
-const authBackendValues = {
-  signin: "student_signin",
-  login: "student_login",
-} as const;
-
 const advancedFeatures = [
   {
     title: "AI Resume Studio",
@@ -131,9 +127,9 @@ export default function Home() {
   const router = useRouter();
   const [dismissLoginPopup, setDismissLoginPopup] = useState(false);
   const showLoginPopup = !user && !dismissLoginPopup;
-  const [account, setAccount] = useState<{ name: string; email: string; password: string } | null>(null);
-  const [authMode, setAuthMode] = useState<"create" | "signin" | "login">("create");
+  const [authMode, setAuthMode] = useState<"create" | "login">("create");
   const [authMessage, setAuthMessage] = useState("");
+  const [portalLoading, setPortalLoading] = useState(false);
   const [newStudentName, setNewStudentName] = useState("");
   const [newStudentEmail, setNewStudentEmail] = useState("");
   const [newStudentPassword, setNewStudentPassword] = useState("");
@@ -144,7 +140,6 @@ export default function Home() {
   const [contactSubject, setContactSubject] = useState("Mentorship Request");
   const [contactMessage, setContactMessage] = useState("");
   const [contactStatus, setContactStatus] = useState("");
-  const [activeAuthBackendValue, setActiveAuthBackendValue] = useState<string>("");
 
   const normalizedSkills = useMemo(
     () => skills.split(",").map((s) => s.trim().toLowerCase()).filter(Boolean),
@@ -162,7 +157,15 @@ export default function Home() {
     );
   };
 
-  const handleCreateAccount = (event: React.FormEvent<HTMLFormElement>) => {
+  useEffect(() => {
+    if (user) {
+      setContactName(user.displayName || contactName);
+      setContactEmail(user.email || contactEmail);
+      setAuthMessage("You are logged in to Student Portal.");
+    }
+  }, [user]);
+
+  const handleCreateAccount = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     if (!newStudentName || !newStudentEmail || !newStudentPassword) {
@@ -170,50 +173,53 @@ export default function Home() {
       return;
     }
 
-    const createdAccount = {
-      name: newStudentName,
-      email: newStudentEmail.toLowerCase(),
-      password: newStudentPassword,
-    };
-
-    setAccount(createdAccount);
-    setContactName(createdAccount.name);
-    setContactEmail(createdAccount.email);
-    setAuthMessage("Account created successfully. You can now send message to the team.");
-    setAuthMode("signin");
-    setSignInEmail(createdAccount.email);
-    setSignInPassword(createdAccount.password);
-    setActiveAuthBackendValue(authBackendValues.signin);
+    setPortalLoading(true);
+    const result = await signUpUser(newStudentEmail.toLowerCase(), newStudentPassword, newStudentName);
+    if (result.success) {
+      setContactName(result.user?.displayName || newStudentName);
+      setContactEmail(result.user?.email || newStudentEmail.toLowerCase());
+      setAuthMessage("Account created successfully. You are now logged in.");
+      setAuthMode("login");
+      setSignInEmail(newStudentEmail.toLowerCase());
+      setSignInPassword("");
+    } else {
+      setAuthMessage(result.error || "Signup failed. Please try again.");
+    }
+    setPortalLoading(false);
   };
 
-  const handleSignIn = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSignIn = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-
-    if (!account) {
-      setAuthMessage("No account found. Please create account first.");
-      return;
+    setPortalLoading(true);
+    const result = await signInUser(signInEmail.toLowerCase(), signInPassword);
+    if (result.success) {
+      setContactName(result.user?.displayName || contactName);
+      setContactEmail(result.user?.email || signInEmail.toLowerCase());
+      setAuthMessage("Login successful. You can now continue to assessment.");
+    } else {
+      setAuthMessage(result.error || "Invalid email or password. Please try again.");
     }
+    setPortalLoading(false);
+  };
 
-    const modeValue = authMode === "login" ? authBackendValues.login : authBackendValues.signin;
-
-    if (account.email === signInEmail.toLowerCase() && account.password === signInPassword) {
-      setContactName(account.name);
-      setContactEmail(account.email);
-      setActiveAuthBackendValue(modeValue);
-      setAuthMessage(
-        `${authMode === "login" ? "Login" : "Sign in"} successful. Backend value: ${modeValue}. You can now send message to the team.`,
-      );
-      return;
+  const handleGooglePortalSignIn = async () => {
+    setPortalLoading(true);
+    const result = await signInWithGoogle();
+    if (result.success) {
+      setContactName(result.user?.displayName || contactName);
+      setContactEmail(result.user?.email || contactEmail);
+      setAuthMessage("Google login successful. You can now continue to assessment.");
+    } else {
+      setAuthMessage(result.error || "Google login failed. Please try again.");
     }
-
-    setAuthMessage("Invalid email or password. Please try again.");
+    setPortalLoading(false);
   };
 
   const handleSendMessage = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    if (!account) {
-      setContactStatus("Please create account or sign in before sending message.");
+    if (!user) {
+      setContactStatus("Please log in from Student Portal before sending message.");
       return;
     }
 
@@ -223,7 +229,7 @@ export default function Home() {
     }
 
     setContactStatus(
-      `Message sent successfully with auth value: ${activeAuthBackendValue || "none"}. Team will reach out soon.`,
+      "Message sent successfully. Team will reach out soon.",
     );
     setContactMessage("");
   };
@@ -493,10 +499,7 @@ export default function Home() {
               </svg>
             </div>
             <h2 className="mt-4 text-2xl font-semibold md:text-3xl">Student Portal</h2>
-            <p className="mt-2 max-w-md text-slate-300">
-              Create your student account, sign in, and then send message directly to the Career Navigator
-              team.
-            </p>
+            <p className="mt-2 max-w-md text-slate-300">Create account or login with Firebase from this section.</p>
 
             <div className="mt-5 inline-flex rounded-xl border border-slate-700 bg-slate-900/70 p-1">
               <button
@@ -512,21 +515,10 @@ export default function Home() {
               </button>
               <button
                 type="button"
-                onClick={() => setAuthMode("signin")}
-                className={`rounded-lg px-4 py-2 text-sm transition ${
-                  authMode === "signin"
-                    ? "bg-linear-to-r from-cyan-500 to-fuchsia-500 text-white shadow-lg shadow-cyan-500/20"
-                    : "text-slate-300 hover:text-white"
-                }`}
-              >
-                Sign In
-              </button>
-              <button
-                type="button"
                 onClick={() => setAuthMode("login")}
                 className={`rounded-lg px-4 py-2 text-sm transition ${
                   authMode === "login"
-                    ? "bg-linear-to-r from-violet-500 to-fuchsia-500 text-white shadow-lg shadow-violet-500/20"
+                    ? "bg-linear-to-r from-cyan-500 to-fuchsia-500 text-white shadow-lg shadow-cyan-500/20"
                     : "text-slate-300 hover:text-white"
                 }`}
               >
@@ -578,9 +570,10 @@ export default function Home() {
                 </label>
                 <button
                   type="submit"
+                  disabled={portalLoading}
                   className="w-full rounded-lg bg-linear-to-r from-fuchsia-500 to-cyan-400 px-5 py-2.5 font-semibold text-white"
                 >
-                  Generate Student Account
+                  {portalLoading ? "Processing..." : "Create Account"}
                 </button>
               </div>
             </form>
@@ -590,12 +583,6 @@ export default function Home() {
               className="rounded-2xl border border-cyan-400/20 bg-slate-900/70 p-5 shadow-xl shadow-cyan-900/20"
             >
               <div className="grid gap-4">
-                <div className="rounded-lg border border-slate-700 bg-slate-900/80 px-3 py-2 text-xs text-slate-300">
-                  Backend auth value:{" "}
-                  <span className="font-semibold text-cyan-200">
-                    {authMode === "login" ? authBackendValues.login : authBackendValues.signin}
-                  </span>
-                </div>
                 <label className="space-y-2">
                   <span className="text-sm text-slate-300">Email</span>
                   <input
@@ -618,9 +605,25 @@ export default function Home() {
                 </label>
                 <button
                   type="submit"
+                  disabled={portalLoading}
                   className="w-full rounded-lg bg-linear-to-r from-cyan-500 to-fuchsia-500 px-5 py-2.5 font-semibold text-white"
                 >
-                  {authMode === "login" ? "Login" : "Sign In"}
+                  {portalLoading ? "Processing..." : "Login"}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleGooglePortalSignIn}
+                  disabled={portalLoading}
+                  className="w-full rounded-lg border border-slate-600 bg-slate-800 px-5 py-2.5 font-semibold text-slate-200"
+                >
+                  Continue with Google
+                </button>
+                <button
+                  type="button"
+                  onClick={() => router.push('/assessment')}
+                  className="w-full rounded-lg bg-emerald-600 hover:bg-emerald-700 px-5 py-2.5 font-semibold text-white"
+                >
+                  Go to Assessment
                 </button>
               </div>
             </form>
@@ -708,10 +711,10 @@ export default function Home() {
                 )}
                 <button
                   type="submit"
-                  disabled={!account}
+                  disabled={!user}
                   className="w-full rounded-lg bg-linear-to-r from-fuchsia-500 to-cyan-400 px-5 py-2.5 font-semibold text-white transition hover:from-fuchsia-400 hover:to-cyan-300"
                 >
-                  {account ? "Send Message" : "Create account or sign in first"}
+                  {user ? "Send Message" : "Login first from Student Portal"}
                 </button>
               </div>
             </form>
