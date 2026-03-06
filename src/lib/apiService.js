@@ -1,5 +1,6 @@
 // src/lib/apiService.js
 import { auth } from './firebase';
+import { onAuthStateChanged } from 'firebase/auth';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
 
@@ -9,9 +10,55 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8
 const getIdToken = async () => {
   const currentUser = auth.currentUser;
   if (currentUser) {
-    return currentUser.getIdToken();
+    // Force refresh to avoid stale/expired token 401 responses.
+    return currentUser.getIdToken(true);
   }
-  throw new Error('User not authenticated');
+
+  const resolvedUser = await new Promise((resolve, reject) => {
+    const timeoutId = setTimeout(() => {
+      unsubscribe();
+      reject(new Error('User not authenticated'));
+    }, 5000);
+
+    const unsubscribe = onAuthStateChanged(
+      auth,
+      (user) => {
+        clearTimeout(timeoutId);
+        unsubscribe();
+        if (user) {
+          resolve(user);
+        } else {
+          reject(new Error('User not authenticated'));
+        }
+      },
+      (error) => {
+        clearTimeout(timeoutId);
+        unsubscribe();
+        reject(error);
+      }
+    );
+  });
+
+  return resolvedUser.getIdToken(true);
+};
+
+const fetchWithAuth = async (url, options = {}) => {
+  const makeRequest = async () => {
+    const token = await getIdToken();
+    const headers = {
+      'Content-Type': 'application/json',
+      ...(options.headers || {}),
+      'Authorization': `Bearer ${token}`,
+    };
+    return fetch(url, { ...options, headers });
+  };
+
+  let response = await makeRequest();
+  if (response.status === 401) {
+    // Single retry with a freshly resolved token for transient auth failures.
+    response = await makeRequest();
+  }
+  return response;
 };
 
 /**
@@ -19,14 +66,8 @@ const getIdToken = async () => {
  */
 export const submitAssessment = async (assessmentData) => {
   try {
-    const token = await getIdToken();
-
-    const response = await fetch(`${API_BASE_URL}/api/assessment`, {
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/assessment`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
       body: JSON.stringify(assessmentData)
     });
 
@@ -43,13 +84,8 @@ export const submitAssessment = async (assessmentData) => {
 
 export const getFullRecommendations = async (payload) => {
   try {
-    const token = await getIdToken();
-    const response = await fetch(`${API_BASE_URL}/api/recommendations`, {
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/recommendations`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
       body: JSON.stringify(payload || {})
     });
     if (!response.ok) {
@@ -67,14 +103,8 @@ export const getFullRecommendations = async (payload) => {
  */
 export const getLatestAssessment = async () => {
   try {
-    const token = await getIdToken();
-
-    const response = await fetch(`${API_BASE_URL}/api/assessment/latest`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      }
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/assessment/latest`, {
+      method: 'GET'
     });
 
     if (!response.ok) {
@@ -93,14 +123,8 @@ export const getLatestAssessment = async () => {
  */
 export const getCareerRecommendations = async (payload) => {
   try {
-    const token = await getIdToken();
-
-    const response = await fetch(`${API_BASE_URL}/api/career-recommendations`, {
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/career-recommendations`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
       body: JSON.stringify(payload || {})
     });
 
@@ -120,14 +144,8 @@ export const getCareerRecommendations = async (payload) => {
  */
 export const getSkillGapAnalysis = async (payload) => {
   try {
-    const token = await getIdToken();
-
-    const response = await fetch(`${API_BASE_URL}/api/skill-gap-analysis`, {
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/skill-gap-analysis`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
       body: JSON.stringify(payload || {})
     });
 
@@ -147,14 +165,8 @@ export const getSkillGapAnalysis = async (payload) => {
  */
 export const getLearningResources = async (payload) => {
   try {
-    const token = await getIdToken();
-
-    const response = await fetch(`${API_BASE_URL}/api/learning-resources`, {
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/learning-resources`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
       body: JSON.stringify(payload || {})
     });
 
@@ -174,14 +186,8 @@ export const getLearningResources = async (payload) => {
  */
 export const getResumeGuidance = async (payload) => {
   try {
-    const token = await getIdToken();
-
-    const response = await fetch(`${API_BASE_URL}/api/resume`, {
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/resume`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
       body: JSON.stringify(payload || {})
     });
 
@@ -198,13 +204,8 @@ export const getResumeGuidance = async (payload) => {
 
 export const getUserHistory = async () => {
   try {
-    const token = await getIdToken();
-    const response = await fetch(`${API_BASE_URL}/api/user-history`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      }
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/user-history`, {
+      method: 'GET'
     });
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
