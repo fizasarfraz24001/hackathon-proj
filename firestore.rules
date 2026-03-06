@@ -1,0 +1,61 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Users collection - users can read/write their own data
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+
+      // Allow authenticated user to manage their own nested data
+      // e.g. users/{userId}/assessments, recommendations, resumes, etc.
+      match /{subcollection}/{docId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+
+    // Assessments collection - users can read/write/create their own assessments
+    match /assessments/{assessmentId} {
+      // Allow read/write if the document exists and user matches
+      allow read, write: if request.auth != null &&
+        (request.auth.uid == resource.data.userId || request.auth.uid == resource.data.user_id);
+
+      // Allow create if the user is creating their own assessment (check request)
+      allow create: if request.auth != null &&
+        (request.resource.data.userId == request.auth.uid || request.resource.data.user_id == request.auth.uid);
+    }
+
+    // Recommendations collection - users can read/write/create their own recommendations
+    match /recommendations/{recommendationId} {
+      allow read, write: if request.auth != null &&
+        request.auth.uid == resource.data.userId;
+
+      allow create: if request.auth != null &&
+        request.resource.data.userId == request.auth.uid;
+    }
+
+    // Learning paths collection - users can read/write/create their own learning paths
+    match /learning_paths/{pathId} {
+      allow read, write: if request.auth != null &&
+        request.auth.uid == resource.data.userId;
+
+      allow create: if request.auth != null &&
+        request.resource.data.userId == request.auth.uid;
+    }
+
+    // User progress collection - users can read/write/create their own progress
+    match /user_progress/{progressId} {
+      allow read, write: if request.auth != null &&
+        request.auth.uid == resource.data.userId;
+
+      allow create: if request.auth != null &&
+        request.resource.data.userId == request.auth.uid;
+    }
+
+    // Allow read/write access to all collections for development
+    // In production, you should specify exact permissions for each collection
+    match /{document=**} {
+      // Allow if authenticated and it's their own data (as defined above)
+      // This is a fallback that will be overridden by more specific rules above
+      allow read, write: if false;  // This ensures only the specific rules above apply
+    }
+  }
+}

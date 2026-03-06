@@ -1,6 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/context/AuthContext';
 
 type Track = {
   title: string;
@@ -74,6 +76,10 @@ export default function Home() {
   const [interests, setInterests] = useState<string[]>([]);
   const [skills, setSkills] = useState("");
   const [showResults, setShowResults] = useState(false);
+  const { user } = useAuth();
+  const router = useRouter();
+  const [dismissLoginPopup, setDismissLoginPopup] = useState(false);
+  const showLoginPopup = !user && !dismissLoginPopup;
 
   const normalizedSkills = useMemo(
     () => skills.split(",").map((s) => s.trim().toLowerCase()).filter(Boolean),
@@ -89,20 +95,60 @@ export default function Home() {
     setInterests((prev) => (prev.includes(interest) ? prev.filter((i) => i !== interest) : [...prev, interest]));
   };
 
+  const handleDashboardClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (user) {
+      router.push('/dashboard');
+    } else {
+      router.push('/login');
+    }
+  };
+
   return (
-    <main className="min-h-screen bg-slate-950 text-slate-100" id="home">
-      <header className="sticky top-0 z-40 border-b border-slate-800 bg-slate-950/90 backdrop-blur">
+    <main className="min-h-screen bg-slate-900 text-slate-100" id="home">
+      {showLoginPopup && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+          <div className="w-full max-w-md rounded-xl border border-slate-700 bg-slate-900 p-6">
+            <h2 className="text-xl font-semibold text-white">Login Required</h2>
+            <p className="mt-2 text-sm text-slate-300">
+              Please log in to generate personalized career recommendations.
+            </p>
+            <div className="mt-5 flex gap-3">
+              <button
+                onClick={() => router.push('/login')}
+                className="rounded-md bg-cyan-600 px-4 py-2 text-sm font-medium text-white hover:bg-cyan-700"
+              >
+                Login / Signup
+              </button>
+              <button
+                onClick={() => setDismissLoginPopup(true)}
+                className="rounded-md border border-slate-600 px-4 py-2 text-sm text-slate-300 hover:bg-slate-800"
+              >
+                Continue as Guest
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <header className="sticky top-0 z-40 border-b border-slate-700 bg-slate-900/90 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
           <div>
-            <p className="text-xs text-cyan-300">SkillSprint</p>
+            <p className="text-xs text-cyan-400">SkillSprint</p>
             <p className="text-lg font-bold">Youth Career Navigator</p>
           </div>
           <nav className="hidden gap-4 text-sm md:flex">
             {navItems.map((item) => (
-              <a key={item.href} href={item.href} className="text-slate-300 hover:text-cyan-300">
+              <a key={item.href} href={item.href} className="text-slate-300 hover:text-cyan-400">
                 {item.label}
               </a>
             ))}
+            <button
+              onClick={handleDashboardClick}
+              className="text-slate-300 hover:text-cyan-400"
+            >
+              {user ? 'Dashboard' : 'Login'}
+            </button>
           </nav>
         </div>
       </header>
