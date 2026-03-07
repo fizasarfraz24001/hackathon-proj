@@ -6,6 +6,7 @@ import { signOutUser } from '@/lib/auth';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { getFullRecommendations, getLatestAssessment, getResumeGuidance, getUserHistory } from '@/lib/apiService';
+import PageNavigation from '@/components/PageNavigation';
 import jsPDF from 'jspdf';
 
 type Career = {
@@ -234,6 +235,7 @@ const DashboardPage = () => {
       <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         <div className="px-4 py-6 sm:px-0">
           <div className="border-2 border-slate-700 rounded-lg p-6 bg-slate-800/50">
+            <PageNavigation />
             <h2 className="text-2xl font-bold text-white mb-4">Welcome to Your Career Dashboard</h2>
             <p className="text-slate-300 mb-6">
               You are successfully logged in. This is a protected route that&apos;s only accessible to authenticated users.

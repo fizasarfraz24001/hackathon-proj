@@ -3,6 +3,7 @@
 import { FormEvent, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getResumeGuidance } from '@/lib/apiService';
+import PageNavigation from '@/components/PageNavigation';
 import jsPDF from 'jspdf';
 
 type ResumeResponse = {
@@ -139,6 +140,7 @@ const ResumePage = () => {
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100 py-8">
       <div className="max-w-4xl mx-auto px-4">
+        <PageNavigation />
         <h1 className="text-3xl font-bold text-white mb-2">AI Resume Builder</h1>
         <p className="text-slate-400 mb-8">Generate a complete resume draft and download it as PDF.</p>
 
