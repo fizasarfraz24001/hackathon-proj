@@ -1,5 +1,8 @@
-from pydantic_settings import BaseSettings, SettingsConfigDict
-from typing import List, Optional
+import json
+from typing import Annotated, Any, List, Optional
+
+from pydantic import field_validator
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -43,6 +46,35 @@ class Settings(BaseSettings):
     database_url: str = "sqlite:///./career_guidance.db"
 
     # CORS
-    cors_origins: List[str] = ["http://localhost:3000", "http://localhost:3001"]
+    cors_origins: Annotated[List[str], NoDecode] = ["http://localhost:3000", "http://localhost:3001"]
+
+    @field_validator("cors_origins", mode="before")
+    @classmethod
+    def parse_cors_origins(cls, value: Any) -> List[str]:
+        """
+        Accept CORS origins in multiple formats:
+        - JSON list string: ["https://a.com","https://b.com"]
+        - Comma-separated string: https://a.com,https://b.com
+        - Plain string: https://a.com
+        """
+        if isinstance(value, list):
+            return [str(item).strip() for item in value if str(item).strip()]
+
+        if isinstance(value, str):
+            raw = value.strip()
+            if not raw:
+                return []
+
+            if raw.startswith("["):
+                try:
+                    parsed = json.loads(raw)
+                    if isinstance(parsed, list):
+                        return [str(item).strip() for item in parsed if str(item).strip()]
+                except json.JSONDecodeError:
+                    pass
+
+            return [item.strip() for item in raw.split(",") if item.strip()]
+
+        return ["http://localhost:3000", "http://localhost:3001"]
 
 settings = Settings()
