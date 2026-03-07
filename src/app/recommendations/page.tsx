@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { getCareerRecommendations, getLatestAssessment, getSkillGapAnalysis } from '@/lib/apiService';
+import PageNavigation from '@/components/PageNavigation';
 
 type AssessmentData = {
   id?: string;
@@ -137,6 +138,7 @@ const RecommendationsPage = () => {
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100 py-8">
       <div className="max-w-6xl mx-auto px-4">
+        <PageNavigation />
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-white mb-2">Career Recommendations</h1>
           <p className="text-slate-400">

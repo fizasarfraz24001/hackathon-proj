@@ -5,6 +5,57 @@ from app.services.career_catalog import CAREER_DOMAINS, GLOBAL_PLATFORMS, LOCAL_
 
 
 class CareerRecommendationAgent:
+    def _is_career_in_domain(self, career: Dict[str, Any], domain: str) -> bool:
+        details = CAREER_DOMAINS.get(domain, {})
+        keywords = details.get("keywords", [])
+        text_blob = " ".join(
+            [
+                career.get("title", ""),
+                career.get("description", ""),
+                " ".join(career.get("required_skills", []) or []),
+                " ".join(career.get("entry_roles", []) or []),
+            ]
+        ).lower()
+        return any(keyword in text_blob for keyword in keywords)
+
+    def _build_strict_domain_fallback(self, domain: str) -> List[Dict[str, Any]]:
+        source = [dict(career) for career in CAREER_DOMAINS.get(domain, {}).get("careers", [])]
+        selected: List[Dict[str, Any]] = source[:3]
+
+        if len(selected) < 3 and source:
+            existing_titles = {career.get("title", "") for career in selected}
+            base_skills = []
+            for career in source:
+                for skill in career.get("required_skills", []):
+                    if skill not in base_skills:
+                        base_skills.append(skill)
+
+            domain_label = domain.replace("&", "and")
+            generated_titles = [
+                f"Junior {domain_label} Specialist",
+                f"{domain_label} Operations Associate",
+                f"{domain_label} Program Assistant",
+            ]
+
+            for title in generated_titles:
+                if len(selected) >= 3:
+                    break
+                if title in existing_titles:
+                    continue
+                selected.append(
+                    {
+                        "title": title,
+                        "description": f"Support entry-level {domain} workflows with practical hands-on execution.",
+                        "required_skills": (base_skills[:4] or ["Communication", "Problem Solving", "Documentation"]),
+                        "entry_roles": [f"{domain} Intern", f"Junior {domain_label} Associate"],
+                    }
+                )
+                existing_titles.add(title)
+
+        for career in selected:
+            career["learning_resources"] = self._build_learning_resources(career.get("required_skills", []))
+        return selected[:3]
+
     def _match_domains(self, interests: List[str], preferred_career_field: str) -> List[str]:
         normalized = " ".join(interests + ([preferred_career_field] if preferred_career_field else [])).lower()
         matched = []
@@ -46,7 +97,8 @@ class CareerRecommendationAgent:
         education_level: str,
         preferred_career_field: str = "",
     ) -> Dict[str, Any]:
-        matched_domains = self._match_domains(interests, preferred_career_field)
+        strict_domain = preferred_career_field if preferred_career_field in CAREER_DOMAINS else ""
+        matched_domains = [strict_domain] if strict_domain else self._match_domains(interests, preferred_career_field)
         prompt = f"""
 You are CareerRecommendationAgent.
 Generate exactly 3 realistic career recommendations in valid JSON only for diverse academic backgrounds.
@@ -61,6 +113,7 @@ Input:
 Guidance:
 - Include domains from: Technology, Healthcare, Business, Finance, Marketing, Education, Design, Engineering, Law, Social Work, Hospitality, Skilled Trades, Public Service.
 - Keep recommendations practical for youth and early-career profiles.
+- If preferred_career_field is provided and valid, ALL 3 careers must belong to that same field only.
 
 Return JSON only with this schema:
 {{
@@ -84,8 +137,15 @@ Return JSON only with this schema:
             for career in careers[:3]:
                 career.setdefault("learning_resources", self._build_learning_resources(career.get("required_skills", [])))
                 normalized.append(career)
+
+            if strict_domain:
+                if len(normalized) < 3 or not all(self._is_career_in_domain(career, strict_domain) for career in normalized):
+                    return {"careers": self._build_strict_domain_fallback(strict_domain)}
             return {"careers": normalized}
         except Exception:
+            if strict_domain:
+                return {"careers": self._build_strict_domain_fallback(strict_domain)}
+
             selected = []
             for domain in matched_domains:
                 selected.extend([dict(career) for career in CAREER_DOMAINS[domain]["careers"][:1]])

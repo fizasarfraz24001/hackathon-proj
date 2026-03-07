@@ -1,6 +1,7 @@
 import { GeistSans } from 'geist/font/sans';
 import "./globals.css";
 import { AuthProvider } from '@/context/AuthContext';
+import CareerChatbot from '@/components/CareerChatbot';
 
 export const metadata = {
   title: "Youth Career Navigator",
@@ -13,6 +14,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className={`${GeistSans.className} bg-slate-900 text-slate-100`}>
         <AuthProvider>
           {children}
+          <CareerChatbot />
         </AuthProvider>
       </body>
     </html>
