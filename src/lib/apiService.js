@@ -2,7 +2,11 @@
 import { auth } from './firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_BASE_URL ||
+  (typeof window !== 'undefined' && window.location.hostname !== 'localhost'
+    ? 'https://hackathon-proj.onrender.com'
+    : 'http://localhost:8000');
 
 const buildHttpError = async (response) => {
   const fallback = `HTTP error! status: ${response.status}`;
