@@ -272,9 +272,12 @@ export default function Home() {
 
       <header className="sticky top-0 z-40 border-b border-slate-700 bg-slate-900/90 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-          <div>
+          <div className="flex items-center gap-3">
+            <img src="/images/logo.jpg?v=2" alt="Youth Career Navigator logo" width={32} height={32} />
+            <div>
             <p className="text-xs text-cyan-400">SkillSprint</p>
             <p className="text-lg font-bold">Youth Career Navigator</p>
+            </div>
           </div>
           <nav className="hidden gap-4 text-sm md:flex">
             {navItems.map((item) => (

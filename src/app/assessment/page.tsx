@@ -130,7 +130,8 @@ const AssessmentPage = () => {
       router.refresh();
     } catch (error) {
       console.error('Error submitting assessment:', error);
-      setError('Failed to submit assessment. Please try again.');
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      setError(`Failed to submit assessment: ${message}`);
     } finally {
       setLoading(false);
     }

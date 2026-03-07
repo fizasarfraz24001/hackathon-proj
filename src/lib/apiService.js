@@ -4,6 +4,17 @@ import { onAuthStateChanged } from 'firebase/auth';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
 
+const buildHttpError = async (response) => {
+  const fallback = `HTTP error! status: ${response.status}`;
+  try {
+    const payload = await response.json();
+    const message = payload?.detail || payload?.message || payload?.error;
+    return new Error(message || fallback);
+  } catch {
+    return new Error(fallback);
+  }
+};
+
 /**
  * Get the current user's ID token
  */
@@ -72,7 +83,7 @@ export const submitAssessment = async (assessmentData) => {
     });
 
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      throw await buildHttpError(response);
     }
 
     return await response.json();
@@ -89,7 +100,7 @@ export const getFullRecommendations = async (payload) => {
       body: JSON.stringify(payload || {})
     });
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      throw await buildHttpError(response);
     }
     return await response.json();
   } catch (error) {
@@ -108,7 +119,7 @@ export const getLatestAssessment = async () => {
     });
 
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      throw await buildHttpError(response);
     }
 
     return await response.json();
@@ -129,7 +140,7 @@ export const getCareerRecommendations = async (payload) => {
     });
 
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      throw await buildHttpError(response);
     }
 
     return await response.json();
@@ -150,7 +161,7 @@ export const getSkillGapAnalysis = async (payload) => {
     });
 
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      throw await buildHttpError(response);
     }
 
     return await response.json();
@@ -171,7 +182,7 @@ export const getLearningResources = async (payload) => {
     });
 
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      throw await buildHttpError(response);
     }
 
     return await response.json();
@@ -192,7 +203,7 @@ export const getResumeGuidance = async (payload) => {
     });
 
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      throw await buildHttpError(response);
     }
 
     return await response.json();
@@ -208,7 +219,7 @@ export const getUserHistory = async () => {
       method: 'GET'
     });
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      throw await buildHttpError(response);
     }
     return await response.json();
   } catch (error) {

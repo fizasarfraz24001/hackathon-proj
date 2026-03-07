@@ -215,7 +215,10 @@ const DashboardPage = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
             <div className="flex items-center">
-              <h1 className="text-xl font-semibold text-white">Career Guidance Dashboard</h1>
+              <div className="flex items-center gap-2">
+                <img src="/images/logo.jpg?v=2" alt="Youth Career Navigator logo" width={26} height={26} />
+                <h1 className="text-xl font-semibold text-white">Career Guidance Dashboard</h1>
+              </div>
             </div>
             <div className="flex items-center space-x-4">
               <div className="text-sm text-slate-300">
