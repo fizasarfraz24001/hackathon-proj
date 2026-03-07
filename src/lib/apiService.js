@@ -2,11 +2,25 @@
 import { auth } from './firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL ||
-  (typeof window !== 'undefined' && window.location.hostname !== 'localhost'
-    ? 'https://hackathon-proj.onrender.com'
-    : 'http://localhost:8000');
+const DEFAULT_PROD_API_BASE_URL = 'https://hackathon-proj.onrender.com';
+
+const resolveApiBaseUrl = () => {
+  const envBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
+  if (typeof window === 'undefined') {
+    return envBaseUrl || 'http://localhost:8000';
+  }
+
+  const isLocalHost =
+    window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+
+  if (!isLocalHost && (!envBaseUrl || envBaseUrl.includes('localhost'))) {
+    return DEFAULT_PROD_API_BASE_URL;
+  }
+
+  return envBaseUrl || 'http://localhost:8000';
+};
+
+const API_BASE_URL = resolveApiBaseUrl();
 
 const buildHttpError = async (response) => {
   const fallback = `HTTP error! status: ${response.status}`;
